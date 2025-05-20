@@ -5,7 +5,6 @@ Algeria,DZ,DZA,12,28.0,3.0
 American Samoa,AS,ASM,16,-14.3333,-170.0
 Andorra,AD,AND,20,42.5,1.6
 Angola,AO,AGO,24,-12.5,18.5
-Anguilla,AI,AIA,660,18.25,-63.1667
 Antarctica,AQ,ATA,10,-90.0,0.0
 Antigua and Barbuda,AG,ATG,28,17.05,-61.8
 Argentina,AR,ARG,32,-34.0,-64.0
@@ -43,7 +42,6 @@ Central African Republic,CF,CAF,140,7.0,21.0
 Chad,TD,TCD,148,15.0,19.0
 Chile,CL,CHL,152,-30.0,-71.0
 China,CN,CHN,156,35.0,105.0
-Christmas Island,CX,CXR,162,-10.5,105.6667
 Cocos (Keeling) Islands,CC,CCK,166,-12.5,96.8333
 Colombia,CO,COL,170,4.0,-72.0
 Comoros,KM,COM,174,-12.1667,44.25
@@ -72,9 +70,7 @@ Faroe Islands,FO,FRO,234,62.0,-7.0
 Fiji,FJ,FJI,242,-18.0,175.0
 Finland,FI,FIN,246,64.0,26.0
 France,FR,FRA,250,46.0,2.0
-French Guiana,GF,GUF,254,4.0,-53.0
 French Polynesia,PF,PYF,258,-15.0,-140.0
-French Southern Territories,TF,ATF,260,-43.0,67.0
 Gabon,GA,GAB,266,-1.0,11.75
 Gambia,GM,GMB,270,13.4667,-16.5667
 Georgia,GE,GEO,268,42.0,43.5
@@ -135,7 +131,6 @@ Maldives,MV,MDV,462,3.25,73.0
 Mali,ML,MLI,466,17.0,-4.0
 Malta,MT,MLT,470,35.8333,14.5833
 Marshall Islands,MH,MHL,584,9.0,168.0
-Martinique,MQ,MTQ,474,14.6667,-61.0
 Mauritania,MR,MRT,478,20.0,-12.0
 Mauritius,MU,MUS,480,-20.2833,57.55
 Mayotte,YT,MYT,175,-12.8333,45.1667
@@ -223,7 +218,6 @@ Trinidad and Tobago,TT,TTO,780,11.0,-61.0
 Tunisia,TN,TUN,788,34.0,9.0
 Turkey,TR,TUR,792,39.0,35.0
 Turkmenistan,TM,TKM,795,40.0,60.0
-Turks and Caicos Islands,TC,TCA,796,21.75,-71.5833
 Tuvalu,TV,TUV,798,-8.0,178.0
 Uganda,UG,UGA,800,1.0,32.0
 Ukraine,UA,UKR,804,49.0,32.0
@@ -236,8 +230,6 @@ Uzbekistan,UZ,UZB,860,41.0,64.0
 Vanuatu,VU,VUT,548,-16.0,167.0
 "Venezuela, Bolivarian Republic of",VE,VEN,862,8.0,-66.0
 Viet Nam,VN,VNM,704,16.0,106.0
-"Virgin Islands, British",VG,VGB,92,18.5,-64.5
-"Virgin Islands, U.S.",VI,VIR,850,18.3333,-64.8333
 Wallis and Futuna,WF,WLF,876,-13.3,-176.2
 Western Sahara,EH,ESH,732,24.5,-13.0
 Yemen,YE,YEM,887,15.0,48.0
