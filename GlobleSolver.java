@@ -1,10 +1,3 @@
-import org.jgrapht.Graph;
-import org.jgrapht.Graphs;
-import org.jgrapht.alg.shortestpath.DijkstraShortestPath;
-import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.DefaultUndirectedWeightedGraph;
-import org.jgrapht.graph.DefaultWeightedEdge;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -12,152 +5,152 @@ import java.util.*;
 
 public class GlobleSolver {
     private static final double TOLERANCE_MILES = 200.0;
-    private static final int ADJ_NEIGHBOR_COUNT = 10;  // top‐N closest ≈ adjacent
+    private static final int ADJ_NEIGHBOR_COUNT = 10;
+    private static final double EARTH_RADIUS_KM = 6371.0;
+
+    static class Country {
+        String name;
+        double lat, lon;
+        Country(String name, double lat, double lon) {
+            this.name = name;
+            this.lat = lat;
+            this.lon = lon;
+        }
+    }
 
     public static void main(String[] args) throws IOException {
-        // 1. Read country centroids
-        Map<String,double[]> coords = new LinkedHashMap<>();
-        try (BufferedReader br = new BufferedReader(new FileReader("data/country-coord.csv"))) {
-            String header = br.readLine();  // skip header
+        // 1) Load countries
+        List<Country> countries = loadCountries("data/country-coord.csv");
+        Map<String,Integer> idxMap = new HashMap<>();
+        for (int i = 0; i < countries.size(); i++) {
+            idxMap.put(countries.get(i).name.toLowerCase(), i);
+        }
+
+        // 2) Compute all‐pairs distances
+        double[][] distKm = new double[countries.size()][countries.size()];
+        for (int i = 0; i < countries.size(); i++) {
+            for (int j = i; j < countries.size(); j++) {
+                double d = haversine(countries.get(i), countries.get(j));
+                distKm[i][j] = d;
+                distKm[j][i] = d;
+            }
+        }
+
+        Scanner in = new Scanner(System.in);
+
+        // 3) Read the user's closest guess and its distance
+        System.out.print("Enter your closest guess country: ");
+        String guessName = in.nextLine().trim().toLowerCase();
+        Integer guessIdx = idxMap.get(guessName);
+        if (guessIdx == null) {
+            System.err.println("Unknown country: " + guessName);
+            return;
+        }
+
+        System.out.print("Enter distance to target (miles; 0 = adjacent): ");
+        double miles;
+        try {
+            miles = Double.parseDouble(in.nextLine().trim());
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid distance.");
+            return;
+        }
+        double tolKm   = TOLERANCE_MILES * 1.60934;
+        double milesKm = miles * 1.60934;
+
+        // 4) Build candidate set from that single reading
+        Set<Integer> candidates = new HashSet<>();
+        if (miles == 0) {
+            // take the ADJ_NEIGHBOR_COUNT nearest centroids
+            PriorityQueue<Map.Entry<Integer,Double>> pq =
+                    new PriorityQueue<>(Comparator.comparingDouble(Map.Entry::getValue));
+            for (int i = 0; i < countries.size(); i++) {
+                if (i == guessIdx) continue;
+                pq.add(Map.entry(i, distKm[guessIdx][i]));
+            }
+            for (int i = 0; i < ADJ_NEIGHBOR_COUNT && !pq.isEmpty(); i++) {
+                candidates.add(pq.poll().getKey());
+            }
+        } else {
+            for (int i = 0; i < countries.size(); i++) {
+                double d = distKm[guessIdx][i];
+                if (Math.abs(d - milesKm) <= tolKm) {
+                    candidates.add(i);
+                }
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            System.out.println("No candidates match your distance reading.");
+            return;
+        }
+
+        // 5) Compute entropy for each possible next guess
+        double tot = candidates.size();
+        Map<Integer,Double> entropyMap = new HashMap<>();
+        for (int g = 0; g < countries.size(); g++) {
+            // skip guessing the same country you just tried
+            if (g == guessIdx) continue;
+
+            // build distribution of predicted "redness" over candidates
+            Map<Integer,Integer> freq = new HashMap<>();
+            for (int c : candidates) {
+                double d = distKm[g][c];
+                int r = (int)Math.round(100 * Math.exp(-d / 5000.0));
+                freq.merge(r, 1, Integer::sum);
+            }
+
+            // compute Shannon entropy
+            double H = 0.0;
+            for (int count : freq.values()) {
+                double p = count / tot;
+                H -= p * (Math.log(p) / Math.log(2));
+            }
+            entropyMap.put(g, H);
+        }
+
+        // 6) Pick the single highest‐entropy country
+        int bestIdx = Collections.max(entropyMap.entrySet(),
+                Map.Entry.comparingByValue()).getKey();
+        System.out.printf("Next best guess: %s (entropy = %.4f bits)%n",
+                countries.get(bestIdx).name,
+                entropyMap.get(bestIdx));
+
+        // Optionally, list the top 5 by entropy:
+        System.out.println("\nTop 5 suggestions:");
+        entropyMap.entrySet().stream()
+                .sorted(Map.Entry.<Integer,Double>comparingByValue().reversed())
+                .limit(5)
+                .forEach(e -> {
+                    System.out.printf("• %s (%.4f bits)%n",
+                            countries.get(e.getKey()).name, e.getValue());
+                });
+    }
+
+    private static List<Country> loadCountries(String path) throws IOException {
+        List<Country> list = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(path))) {
+            br.readLine(); // skip header
             String line;
             while ((line = br.readLine()) != null) {
                 String[] p = line.split(",");
                 if (p.length < 3) continue;
                 String name = p[0].trim();
-                double lat = Double.parseDouble(p[p.length-2].trim());
-                double lon = Double.parseDouble(p[p.length-1].trim());
-                coords.put(name, new double[]{lat, lon});
+                double lat = Double.parseDouble(p[p.length - 2].trim());
+                double lon = Double.parseDouble(p[p.length - 1].trim());
+                list.add(new Country(name, lat, lon));
             }
         }
-
-        // 2. Build a complete weighted graph of distances
-        DefaultUndirectedWeightedGraph<String, DefaultWeightedEdge> graph =
-                new DefaultUndirectedWeightedGraph<>(DefaultWeightedEdge.class);
-        for (String country : coords.keySet()) {
-            graph.addVertex(country);
-        }
-        List<String> list = new ArrayList<>(coords.keySet());
-        for (int i = 0; i < list.size(); i++) {
-            for (int j = i+1; j < list.size(); j++) {
-                String a = list.get(i), b = list.get(j);
-                double[] ca = coords.get(a), cb = coords.get(b);
-                double km = haversine(ca[0], ca[1], cb[0], cb[1]);
-                DefaultWeightedEdge e = graph.addEdge(a, b);
-                graph.setEdgeWeight(e, km);
-            }
-        }
-
-        // 3. Solver state
-        Set<String> candidates = new HashSet<>(coords.keySet());
-        Set<String> guessed    = new HashSet<>();
-        Scanner in = new Scanner(System.in);
-        DijkstraShortestPath<String,DefaultWeightedEdge> dsp = new DijkstraShortestPath<>(graph);
-
-        // 4. Interactive loop
-        while (true) {
-            if (candidates.isEmpty()) {
-                System.out.println("No candidates remain. Exiting.");
-                break;
-            }
-
-            // 4a. Suggest next guesses by entropy
-            System.out.println("\nTop suggestions:");
-            if (candidates.size() <= 5) {
-                int idx = 1;
-                for (String c : candidates) {
-                    System.out.printf("%d. %s%n", idx++, c);
-                }
-            } else {
-                Map<String,Double> ent = new HashMap<>();
-                for (String g : candidates) {
-                    if (guessed.contains(g)) continue;
-                    Map<Integer,Integer> freq = new HashMap<>();
-                    for (String c : candidates) {
-                        double d = graph.getEdgeWeight(graph.getEdge(g,c));
-                        int r = (int)Math.round(100 * Math.exp(-d/5000.0));
-                        freq.merge(r,1,Integer::sum);
-                    }
-                    double H = 0, tot = candidates.size();
-                    for (int cnt : freq.values()) {
-                        double p = cnt/tot;
-                        H -= p * (Math.log(p)/Math.log(2));
-                    }
-                    ent.put(g,H);
-                }
-                ent.entrySet().stream()
-                        .sorted(Map.Entry.<String,Double>comparingByValue().reversed())
-                        .limit(5)
-                        .forEach(e -> System.out.println("• " + e.getKey()));
-            }
-
-            // 4b. Read and validate guess
-            System.out.print("\nEnter your guess: ");
-            String guess = in.nextLine().trim();
-            if (!candidates.contains(guess) || guessed.contains(guess)) {
-                System.out.println("Invalid or repeated guess.");
-                continue;
-            }
-            guessed.add(guess);
-            candidates.remove(guess);
-
-            // 4c. Read feedback
-            System.out.print("Enter distance to target (miles; 0 = adjacent): ");
-            double miles;
-            try {
-                miles = Double.parseDouble(in.nextLine().trim());
-            } catch (NumberFormatException ex) {
-                System.out.println("Bad number; try again.");
-                guessed.remove(guess);
-                candidates.add(guess);
-                continue;
-            }
-
-            // 4d. Filter candidates
-            if (miles == 0) {
-                // adjacency via k‐nearest neighbors
-                PriorityQueue<Map.Entry<String,Double>> pq = new PriorityQueue<>(
-                        Comparator.comparingDouble(Map.Entry::getValue)
-                );
-                for (String c : graph.vertexSet()) {
-                    if (c.equals(guess)) continue;
-                    double d = graph.getEdgeWeight(graph.getEdge(guess, c));
-                    pq.add(Map.entry(c, d));
-                }
-                Set<String> nbrs = new HashSet<>();
-                for (int i = 0; i < ADJ_NEIGHBOR_COUNT && !pq.isEmpty(); i++) {
-                    nbrs.add(pq.poll().getKey());
-                }
-                candidates.retainAll(nbrs);
-            } else {
-                double kmTarget = miles * 1.60934;
-                double tolKm    = TOLERANCE_MILES * 1.60934;
-                Set<String> keep = new HashSet<>();
-                for (String c : candidates) {
-                    double dist = dsp.getPathWeight(guess, c);
-                    if (!Double.isInfinite(dist)
-                            && Math.abs(dist - kmTarget) <= tolKm) {
-                        keep.add(c);
-                    }
-                }
-                candidates.retainAll(keep);
-            }
-
-            System.out.println("Remaining candidates: " + candidates.size());
-        }
-
-        in.close();
+        return list;
     }
 
-    // haversine formula (km)
-    private static double haversine(double lat1, double lon1,
-                                    double lat2, double lon2) {
-        double R = 6371;
-        double dLat = Math.toRadians(lat2 - lat1),
-                dLon = Math.toRadians(lon2 - lon1);
+    private static double haversine(Country a, Country b) {
+        double lat1 = Math.toRadians(a.lat), lon1 = Math.toRadians(a.lon);
+        double lat2 = Math.toRadians(b.lat), lon2 = Math.toRadians(b.lon);
+        double dLat = lat2 - lat1, dLon = lon2 - lon1;
         double h = Math.sin(dLat/2)*Math.sin(dLat/2)
-                + Math.cos(Math.toRadians(lat1))
-                * Math.cos(Math.toRadians(lat2))
+                + Math.cos(lat1)*Math.cos(lat2)
                 * Math.sin(dLon/2)*Math.sin(dLon/2);
-        return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+        return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
     }
 }
