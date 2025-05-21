@@ -82,15 +82,30 @@ public class GlobleSolver {
                 }
             }
 
-            // 10) apply feedback
+            // Save the current candidates before applying feedback
+            Set<Integer> prevCands = new HashSet<>(mgr.getCandidates());
+
             boolean ok = mgr.applyFeedback(guessIdx, isAdj, miles);
             if (!ok) {
-                System.out.println("No candidates match that feedback—backtracking.");
+                System.out.println("No exact matches—showing the 10 closest by error:");
+                PriorityQueue<Map.Entry<Integer,Double>> pq =
+                        new PriorityQueue<>(Comparator.comparingDouble(Map.Entry::getValue));
+                for (int c : prevCands) {
+                    double actualMi = D.get(guessIdx, c) / 1.60934;
+                    double error    = Math.abs(actualMi - miles);
+                    pq.add(Map.entry(c, error));
+                }
+                for (int i = 0; i < 10 && !pq.isEmpty(); i++) {
+                    int idx = pq.poll().getKey();
+                    System.out.println(" • " + countries.get(idx).getName());
+                }
                 mgr.restore();
                 mgr.markImpossible(guessIdx);
+                continue;
             } else {
                 System.out.println("Remaining candidates: " + mgr.getCandidates().size());
             }
+
         }
 
         // 11) report solution
